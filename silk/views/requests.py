@@ -6,7 +6,7 @@ from django.views.generic import View
 
 from silk.auth import login_possibly_required, permissions_possibly_required
 from silk.models import Request, Response
-from silk.request_filters import BaseFilter, filters_from_request
+from silk.request_filters import BaseFilter, FiltersManager, filters_from_request
 
 __author__ = 'mtford'
 
@@ -59,6 +59,7 @@ class RequestsView(View):
     default_view_style = 'card'
 
     session_key_request_filters = 'request_filters'
+    filters_manager = FiltersManager(session_key_request_filters)
 
     @property
     def options_order_by(self):
@@ -130,15 +131,15 @@ class RequestsView(View):
         return query_set[:show]
 
     def _create_context(self, request):
-        show = request.GET.get('show', self.default_show)
-        order_by = request.GET.get('order_by', self.default_order_by)
-        order_dir = request.GET.get('order_dir', self.default_order_dir)
-        view_style = request.GET.get('view_style', self.default_view_style)
+        raw_filters = self.filters_manager.get(request).copy()
+        show = raw_filters.pop('show', self.default_show)
+        order_by = raw_filters.pop('order_by', self.default_order_by)
+        order_dir = raw_filters.pop('order_dir', self.default_order_dir)
+        view_style = raw_filters.pop('view_style', self.default_view_style)
 
         if show:
             show = int(show)
         path = request.GET.get('path', None)
-        raw_filters = request.session.get(self.session_key_request_filters, {})
         context = {
             'show': show,
             'order_by': order_by,
@@ -153,7 +154,7 @@ class RequestsView(View):
             'options_status_codes': self._get_status_codes(),
             'options_methods': self._get_methods(),
             'view_names': self._get_views(),
-            'filters': raw_filters
+            'filters': raw_filters,
         }
         context.update(csrf(request))
         if path:
@@ -165,11 +166,26 @@ class RequestsView(View):
     @method_decorator(login_possibly_required)
     @method_decorator(permissions_possibly_required)
     def get(self, request):
+        # Retain filters and ordering if they were modified by GET params
+        if request.GET:
+            filters = {
+                # filters from previous session
+                **self.filters_manager.get(request),
+                # new filters from GET, overriding old
+                **{k: v for k, v in request.GET.items() if k in ['show', 'order_by', 'order_dir', 'view_style']},
+            }
+            self.filters_manager.save(request, filters)
         return render(request, 'silk/requests.html', self._create_context(request))
 
     @method_decorator(login_possibly_required)
     @method_decorator(permissions_possibly_required)
     def post(self, request):
-        filters = filters_from_request(request)
-        request.session[self.session_key_request_filters] = {ident: f.as_dict() for ident, f in filters.items()}
+        previous_session = self.filters_manager.get(request)
+        filters = {
+            # filters from previous session but only GET values
+            **{k: v for k, v in previous_session.items() if k in ['show', 'order_by', 'order_dir', 'view_style']},
+            # new filters from POST, overriding old
+            **{ident: f.as_dict() for ident, f in filters_from_request(request).items()},
+        }
+        self.filters_manager.save(request, filters)
         return render(request, 'silk/requests.html', self._create_context(request))

@@ -1,13 +1,11 @@
 import json
-
-# noinspection PyUnresolvedReferences
 from urllib.parse import urlencode
 
-import jinja2
+from django.template import Context, Template
 
-curl_template = """
+curl_template = """\
 curl {% if method %}-X {{ method }}{% endif %}
-{% if content_type %}-H 'Content-Type: {{ content_type }}'{% endif %}
+{% if content_type %}-H 'content-type: {{ content_type }}'{% endif %}
 {% if modifier %}{{ modifier }} {% endif %}{% if body %}'{{ body }}'{% endif %}
 {{ url }}{% if query_params %}{{ query_params }}{% endif %}
 {% if extra %}{{ extra }}{% endif %}
@@ -16,7 +14,6 @@ curl {% if method %}-X {{ method }}{% endif %}
 
 def _curl_process_params(body, content_type, query_params):
     extra = None
-    modifier = None
     if query_params:
         try:
             query_params = urlencode(
@@ -55,13 +52,18 @@ def curl_cmd(url, method=None, query_params=None, body=None, content_type=None):
     if not content_type:
         content_type = 'text/plain'
     modifier, body, query_params, content_type, extra = _curl_process_params(
-        body, content_type, query_params
+        body,
+        content_type,
+        query_params,
     )
-    t = jinja2.Template(curl_template)
-    return ' '.join(t.render(url=url,
-                             method=method,
-                             query_params=query_params,
-                             body=body,
-                             modifier=modifier,
-                             content_type=content_type,
-                             extra=extra).split('\n'))
+    t = Template(curl_template)
+    context = {
+        'url': url,
+        'method': method,
+        'query_params': query_params,
+        'body': body,
+        'modifier': modifier,
+        'content_type': content_type,
+        'extra': extra,
+    }
+    return t.render(Context(context, autoescape=False)).replace('\n', ' ')

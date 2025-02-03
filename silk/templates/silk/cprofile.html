@@ -4,6 +4,8 @@
 {% load silk_inclusion %}
 {% load static %}
 
+{% block pagetitle %}Silky - CProfile - {{ silk_request.path }}{% endblock %}
+
 {% block js %}
     <script type="text/javascript" src="{% static 'silk/lib/viz-lite.js' %}"></script>
     <script type="text/javascript" src="{% static 'silk/lib/svg-pan-zoom.min.js' %}"></script>
@@ -12,63 +14,8 @@
 
 {% block style %}
     {{ block.super }}
-    <link rel="stylesheet" href="{% static 'silk/css/summary.css' %}">
-    <style>
-        #query-info-div {
-            margin-top: 15px;
-        }
-
-        #query-info-div .timestamp-div {
-            font-size: 13px;
-
-        }
-
-        #pyprofile-div {
-            display: block;
-            margin: auto;
-            width: 960px;
-        }
-
-        .pyprofile {
-            text-align: left;
-        }
-
-        a {
-            color: #45ADA8;
-        }
-
-        a:visited {
-            color: #45ADA8;
-        }
-
-        a:hover {
-            color: #547980;
-        }
-
-        a:active {
-            color: #594F4F;
-        }
-
-        #graph-div {
-            padding: 25px;
-            background-color: white;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-            margin-top: 25px;
-            width: 960px;
-            text-align: center;
-        }
-
-        #percent {
-            width: 20px;
-        }
-
-        svg {
-          display: block;
-        }
-
-    </style>
+    <link rel="stylesheet" href="{% static 'silk/css/components/summary.css' %}">
+    <link rel="stylesheet" href="{% static 'silk/css/pages/cprofile.css' %}">
 {% endblock %}
 
 {% block menu %}
@@ -78,7 +25,7 @@
 
 {% block data %}
     <div class="wrapper">
-        <div id="query-div">           
+        <div id="query-div">
             {% if silk_request.pyprofile %}
             <div id="pyprofile-div">
                 <div class="heading">

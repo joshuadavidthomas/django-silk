@@ -27,17 +27,6 @@ content_type_html = ['text/html']
 content_type_css = ['text/css']
 
 
-def _get_response_headers(response):
-    """
-    Django 3.2 (more specifically, commit bcc2befd0e9c1885e45b46d0b0bcdc11def8b249) broke the usage of _headers, which
-    were turned into a public interface, so we need this compatibility wrapper.
-    """
-    try:
-        return response.headers
-    except AttributeError:
-        return response._headers
-
-
 class DefaultEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, UUID):
@@ -45,11 +34,7 @@ class DefaultEncoder(json.JSONEncoder):
 
 
 def _parse_content_type(content_type):
-    """best efforts on pulling out the content type and encoding from Content-Type header"""
-    try:
-        content_type = content_type.strip()
-    except AttributeError:
-        pass
+    """best efforts on pulling out the content type and encoding from content-type header"""
     char_set = None
     if content_type.strip():
         splt = content_type.split(';')
@@ -74,36 +59,24 @@ class RequestModelFactory:
         self.request = request
 
     def content_type(self):
-        content_type = self.request.META.get('CONTENT_TYPE', '')
+        content_type = self.request.headers.get('content-type', '')
         return _parse_content_type(content_type)
 
     def encoded_headers(self):
         """
         From Django docs (https://docs.djangoproject.com/en/2.0/ref/request-response/#httprequest-objects):
-
-        "With the exception of CONTENT_LENGTH and CONTENT_TYPE, as given above, any HTTP headers in the request are converted to
-        META keys by converting all characters to uppercase, replacing any hyphens with underscores and adding an HTTP_ prefix
-        to the name. So, for example, a header called X-Bender would be mapped to the META key HTTP_X_BENDER."
         """
-        headers = {}
-        sensitive_headers = {'AUTHORIZATION'}
-
-        for k, v in self.request.META.items():
-            if k.startswith('HTTP') or k in ('CONTENT_TYPE', 'CONTENT_LENGTH'):
-                splt = k.split('_')
-                if splt[0] == 'HTTP':
-                    splt = splt[1:]
-                k = '-'.join(splt)
-
-                if k in sensitive_headers:
-                    v = RequestModelFactory.CLEANSED_SUBSTITUTE
-
-                headers[k] = v
+        sensitive_headers = set(map(str.lower, SilkyConfig().SILKY_SENSITIVE_KEYS))
+        sensitive_headers.add('authorization')
         if SilkyConfig().SILKY_HIDE_COOKIES:
-            try:
-                del headers['COOKIE']
-            except KeyError:
-                pass
+            sensitive_headers.add('cookie')
+
+        headers = {}
+        for k, v in self.request.headers.items():
+            k = k.lower()
+            if k in sensitive_headers:
+                v = RequestModelFactory.CLEANSED_SUBSTITUTE
+            headers[k] = v
 
         return json.dumps(headers, cls=DefaultEncoder, ensure_ascii=SilkyConfig().SILKY_JSON_ENSURE_ASCII)
 
@@ -281,7 +254,7 @@ class ResponseModelFactory:
 
     def body(self):
         body = ''
-        content_type, char_set = _parse_content_type(self.response.get('Content-Type', ''))
+        content_type, char_set = _parse_content_type(self.response.get('content-type', ''))
         content = getattr(self.response, 'content', '')
         if content:
             max_body_size = SilkyConfig().SILKY_MAX_RESPONSE_BODY_SIZE
@@ -326,9 +299,8 @@ class ResponseModelFactory:
             % self.request.pk
         )
         b, content = self.body()
-        raw_headers = _get_response_headers(self.response)
         headers = {}
-        for k, v in raw_headers.items():
+        for k, v in self.response.headers.items():
             try:
                 header, val = v
             except ValueError:

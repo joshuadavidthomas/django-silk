@@ -2,29 +2,11 @@
 {% load silk_inclusion %}
 {% load static %}
 
+{% block pagetitle %}Silky - Requests{% endblock %}
+
 {% block style %}
     {{ block.super }}
-    <style>
-        .container {
-            padding: 0 1em;
-        }
-
-        .resizing-input input {
-            background-color: white;
-            padding-top: 2px;
-            color: black;
-            box-shadow: inset 0 0 3px black;
-        }
-
-        .resizing-input input::placeholder {
-            color: #383838;
-            opacity: 1;
-        }
-
-        .filter-section {
-            line-height: 2.3;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'silk/css/pages/requests.css' %}"/>
 {% endblock %}
 
 {% block menu %}
@@ -33,13 +15,7 @@
 
 {% block js %}
     {{ block.super }}
-    <script>
-
-        $(document).ready(function () {
-            initFilters();
-            initFilterButton();
-        });
-    </script>
+    <script src="{% static 'silk/js/pages/requests.js' %}"></script>
 {% endblock %}
 
 {% block filter %}
@@ -115,13 +91,13 @@
                    value="OverallTimeFilter"
                    name="filter-overalltime-typ"/>
             <input type="text"
-                   placeholder="seconds"
+                   placeholder="milliseconds"
                    form="filter-form2"
                    name="filter-overalltime-value"
                    value="{{ filters.overalltime.value }}"/>
             <span style="display:none"></span>
         </div>
-        seconds,
+        milliseconds,
         executed more than
         <div class="resizing-input">
             <input form="filter-form2"
@@ -148,13 +124,13 @@
                    name="filter-timespentfilter-typ"/>
             <input
                     type="text"
-                    placeholder="seconds"
+                    placeholder="milliseconds"
                     form="filter-form2"
                     name="filter-timespentfilter-value"
                     value="{{ filters.timespentfilter.value }}"/>
             <span style="display:none"></span>
         </div>
-        seconds executing queries.
+        milliseconds executing queries.
     </div>
     <h4>Date Range</h4>
     <div class="filter-section">
